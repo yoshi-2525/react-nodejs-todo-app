@@ -6,6 +6,7 @@ import todoRoutes from './routes/todo';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth';
 import { verifyToken } from './jwt';
+import path from 'path';
 
 // 型をインポートする
 import type { Request, Response } from 'express';
@@ -17,12 +18,15 @@ dotenv.config();
 // 環境変数からポート番号を取得する
 const port = Number(process.env.PORT) || 3000;
 
+// 環境変数からフロントエンドのURLを取得する
+const frontUrl = process.env.FRONT_URL ?? 'http://localhost:5173';
+
 // Webサーバーの土台を作成する
 const app = express();
 
 // CORSの設定を行う
 app.use(cors({
- origin: 'http://localhost:5173',  // 許可するオリジン
+ origin: frontUrl,  // 許可するオリジン
  methods: ['GET', 'POST', 'PUT','DELETE'],                  // 許可するHTTPメソッド
  credentials:true
 }));
@@ -35,8 +39,16 @@ app.use(cookieParser());
 // ToDoのCRUD機能を担当する各ルートを読み込む
 app.use('/api/todos', verifyToken, todoRoutes);
 
+
 // 認証機能を担当する各ルートを読み込む
 app.use('/api/auth', authRoutes);
+
+// 本番環境ではフロントエンドのビルド済みファイルを配信する
+if (process.env.NODE_ENV === 'production') {
+  const staticDir = path.join(__dirname, '../../frontend/dist');
+  app.use(express.static(staticDir));
+  app.get('/{*splat}', (_, res) => res.sendFile(path.join(staticDir, 'index.html')));
+}
 
 // 定義したルート以外へのアクセスに対する処理（404 Not Found）
 app.use((req: Request, res: Response) => {
